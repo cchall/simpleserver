@@ -214,6 +214,20 @@ class JobServer:
             new_job.simulation(*vals)
             self.job_list.append(new_job)
 
+    def server_report(self, parser):
+
+        for id in parser.ids:
+            if id == 0:
+                # default, print status of all servers
+                for i in sorted([id for id in self.server_list.keys()]):
+                    self._messenger(self.server_list[i].server_report())
+                break
+            else:
+                try:
+                    self._messenger(self.server_list[id].server_report())
+                except KeyError:
+                    self._messenger("Server {} is not registered".format(id))
+
     def _messenger(self, message):
         # Since I didn't create a way to tie server commands to the client that sent them
         #  all messages are broadcast to all open sockets right now
@@ -231,14 +245,12 @@ class JobServer:
 
 
 class Server:
-
-    # TODO: Servers no longer have a single status. You need to count cores occupied.
     def __init__(self, id, folder=None):
         self.id = id
         self.creation = asctime()
         self._start = time()
         self.uptime = self._get_time
-        self.busytime = None  # TODO: make a log for server runtimes
+        self.busytime = 0  # TODO: find a good way to log this
         self.folder = folder
         self.cores = self._core_count()
         self.free_cores = self.cores
@@ -273,6 +285,7 @@ class Server:
         mkfolder = Popen('mkdir -p {}'.format(job.directory), shell=True)
         mkfolder.wait()
         self.jobs[Popen(job.task.format(id=self.id), shell=True)] = job
+        job.starttime = time()
 
     def cleanup_tasks(self):
         process_cleanup = []
@@ -284,8 +297,22 @@ class Server:
                 self.jobs[process].status = process.poll()
                 process_cleanup.append(process)
 
+                process.endtime = time()
+
         for process in process_cleanup:
             self.jobs.pop(process)
+
+    def server_report(self):
+        report  = "Report: Server {}\n".format(self.id)
+        report += "Registered on {}\n".format(self.creation)
+        report += "Usage: {} out of {} hours, {}% occupation\n".format(self.busytime,
+                                                                       self.uptime,
+                                                                       self.busytime / self.uptime * 100)
+        report += "{} Jobs Running\n".format(len(self.jobs))
+        for i, job in enumerate(self.jobs.values()):
+            report += "{}. {}: {}s on {} cores -- {}\n".format(i, job.name, time() - job.starttime, job.cores, job.task)
+
+        return report
 
 
 if __name__ == '__main__':

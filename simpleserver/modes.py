@@ -10,6 +10,8 @@ class Job:
         self.cores = cores
         self.status = 0
         self.task = None
+        self.starttime = None
+        self.endtime = None
         self.directory = './test/'  # TODO: Put in setting to modify directory
 
         print("Temporary testing mpiexec used")
@@ -22,23 +24,6 @@ class Job:
         base_string = self.fill_string_parameters()
         run_string = base_string + inputs_str
         self.task = run_string
-
-    # def scan(self, *args):
-    #     points = []
-    #     for arg in args:
-    #         points.append(np.linspace(*arg))
-    #     mesh = np.meshgrid(*points)
-    #     mesh = [m.ravel() for m in mesh]
-    #
-    #
-    #     inputs_str = []
-    #     base_string = self.fill_string_parameters(len(mesh))
-    #     str_format = ' {}' * len(mesh)
-    #     for vals, bs in zip(zip(*mesh), base_string):
-    #         args = str_format.format(*vals)
-    #         inputs_str.append(bs + args)
-    #
-    #     self.task_list.extend(inputs_str)
 
     def fill_string_parameters(self):
             return self.base_string.format(cores=self.cores,

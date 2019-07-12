@@ -31,13 +31,16 @@ class ParserSetup:
     def server(self):
         parser = ArgumentParserWrapper(description='Manage servers.', add_help=False)
 
-        parser.add_argument('id', type=int)
+        parser.add_argument('id', type=int, default=42424242)
         parser.add_argument('--clean', dest='remove_output', action='store_true')
 
         group1 = parser.add_mutually_exclusive_group()
         group1.add_argument('--add', dest='server_action', action='store_const', const='add_server')
         group1.add_argument('--remove', dest='server_action', action='store_const', const='remove_server')
         group1.add_argument('--stop', dest='server_action', action='store_const', const='stop_server')
+        group1.add_argument('--report', dest='server_action', action='store_const', const='server_report')
+
+        parser.add_argument('--ids', nargs='+', default=[0, ])
 
         return parser.parse_args(sys.argv[2:])
 
