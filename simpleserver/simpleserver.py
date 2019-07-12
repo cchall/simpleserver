@@ -22,16 +22,18 @@ job_status = {-1: 'FAILED',
 
 class JobServer:
     def __init__(self):
-        self.job_list = []
-        self._running_jobs = []
+        self.job_list = []  # Jobs waiting to run
+        self._running_jobs = []  # Jobs currently running
         self.server_list = {}
-        self.folders = {}
-        self._output_buffer = {}
+        self.folders = {}  # TODO: May not need this
+        self._output_buffer = {}  # Store messages to be sent to clients
 
-        self.buf_stash = []
+        self.buf_stash = []  # Stores commands clients have sent to server
         self.threads = []
-        self.stop_listen = False
+        self.stop_listen = False  # Stop listener thread (terminate server)
+        self.job_count = 1
 
+        # Begin Server Startup
         signal.signal(signal.SIGINT, self.signal_handler)
 
         # Start parser
@@ -43,7 +45,7 @@ class JobServer:
         self.server_monitor_thread.start()
 
         # start job launcher
-        sleep(0.25)
+        sleep(0.25)  # Pause to offset thread cycles
         self.job_launcher_thread = Thread(target=self._job_launcher)
         self.job_launcher_thread.daemon = True
         self.job_launcher_thread.start()
@@ -84,7 +86,9 @@ class JobServer:
         self.threads.append(self.parsing_handler)
 
     def _handle_receiver(self, clientsocket):
-        # Manages incoming messages from the client socket and passes them to JobServer for execution
+        """
+        Manages incoming messages from the client socket and passes them to JobServer for execution
+        """
         while 1:
             # Receiver
             buf = clientsocket.recv(self.MAX_LENGTH)
@@ -101,7 +105,9 @@ class JobServer:
             self.buf_stash.append(buf)
 
     def _handle_sender(self, clientsocket):
-        # Checks for messages to be sent to client and sends them
+        """
+        Checks for messages to be sent to client and sends them
+        """
         while 1:
             # Sender
             # TODO: Need a method to kill this thread when socket closes
@@ -113,6 +119,10 @@ class JobServer:
             sleep(1.75)
 
     def _buf_handler(self):
+        """
+        Initial any server actions in a buffer from a client.
+        :return:
+        """
         while 1:
             if len(self.buf_stash) > 0:
                 task = self.buf_stash.pop().decode('utf-8')
@@ -125,7 +135,9 @@ class JobServer:
             sleep(4)
 
     def _server_monitor(self):
-        # Checks servers and changes status of servers and jobs when appropriate
+        """
+        Checks servers and changes status of servers and jobs when appropriate
+        """
         while 1:
             for server in self.server_list.values():
                 server.cleanup_tasks()
@@ -161,7 +173,7 @@ class JobServer:
             candidate_cores = job.cores
             print('jcores', candidate_cores)
             for server in self.server_list.values():
-                print('server has',server.id, server.free_cores)
+                print('server has', server.id, server.free_cores)
                 if candidate_cores <= server.free_cores:
                     candidate = server
                     candidate_cores = server.free_cores
@@ -199,6 +211,8 @@ class JobServer:
     def simulation(self, parser):
         new_job = modes.Job(**{key: getattr(parser, key) for key in vars(parser)})
         new_job.simulation(*parser.args)
+        new_job.job_id = self.job_count
+        self.job_count += 1
         self.job_list.append(new_job)
 
     def scan(self, parser):
@@ -227,6 +241,31 @@ class JobServer:
                     self._messenger(self.server_list[id].server_report())
                 except KeyError:
                     self._messenger("Server {} is not registered".format(id))
+
+    def job(self, parser):
+        """
+        Perform actions on currently running or queued jobs.
+        :param parser:
+        :return:
+        """
+        if parser.stop_job_id:
+            self.stop_job(parser.stop_job_id)
+
+    def stop_job(self, job_id):
+        for job in self.job_list:
+            if job.job_id == job_id:
+                self.job_list.remove(job)
+                report = "Job {id} was removed from the queue.".format(id=job_id)
+                self._messenger(report)
+            else:
+                # Job is running, will need to stop process
+                for server in self.server_list:
+                    for proc, job in server.jobs.items():
+                        if job.job_id == job_id:
+                            proc.kill()
+                            server.cleanup_tasks()
+                            report = "Job {id} was stopped.".format(id=job_id)
+                            self._messenger(report)
 
     def _messenger(self, message):
         # Since I didn't create a way to tie server commands to the client that sent them
