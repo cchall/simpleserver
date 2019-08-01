@@ -16,9 +16,10 @@ class Job:
 
         print("Temporary testing mpiexec used")
         self.base_string = "python monkey_program.py -n {cores} -h {id} {command} {runfile}"
+        self.base_string = "{command} {runfile} -n {cores} -h {id}"
 
     def simulation(self, *args):
-        inputs_str = ''
+        inputs_str = ' '
         for arg in args:
             inputs_str += arg + ' '
         base_string = self.fill_string_parameters()

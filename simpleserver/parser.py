@@ -1,6 +1,8 @@
 import argparse
 import sys
 
+# TODO: Redirect help messages to SimplerServer._messenger
+
 
 class ArgumentParserError(Exception):
     pass
@@ -22,7 +24,7 @@ class ParserSetup:
 
     def __init__(self):
         parser = ArgumentParserWrapper(description='', add_help=False)
-        parser.add_argument('mode', choices=('server', 'simulation', 'scan'))
+        parser.add_argument('mode', choices=('server', 'simulation', 'scan', 'status', 'job'))
         self.args = parser.parse_args(sys.argv[1:2])
 
     def __call__(self, *args, **kwargs):

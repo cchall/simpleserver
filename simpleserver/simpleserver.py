@@ -4,6 +4,7 @@ import numpy as np
 import shutil
 import socket
 import signal
+import logging
 try:
     import mock
 except ImportError:
@@ -13,6 +14,9 @@ from parser import ParserSetup, ArgumentParserError
 import modes
 
 # TODO: Need to make sure folders go to where the client issued request (or the run file home)
+
+logging.basicConfig(filename='example.log',level=logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 job_status = {-1: 'FAILED',
               0: 'WAITING',
@@ -95,7 +99,7 @@ class JobServer:
             if len(buf) == 0:
                 # End receiving and cleanup
                 sleep(0.001)
-                print('input handler is dead')
+                logging.info('Communication with handler {} terminated'.format(clientsocket))
 
                 # Cleanup output buffer
                 self._output_buffer.pop(clientsocket)
@@ -110,8 +114,14 @@ class JobServer:
         """
         while 1:
             # Sender
-            # TODO: Need a method to kill this thread when socket closes
-            print('mailbox of', clientsocket, self._output_buffer[clientsocket])
+
+            # print('mailbox of', clientsocket, self._output_buffer[clientsocket])
+            try:
+                # Check socket is still open and registered
+                self._output_buffer[clientsocket]
+            except KeyError:
+                break
+
             if self._output_buffer[clientsocket]:
                 clientsocket.send(self._output_buffer[clientsocket])
                 self._output_buffer[clientsocket] = ''
@@ -131,7 +141,7 @@ class JobServer:
                         args = self.parser()
                         getattr(self, args().server_action)(args())
                     except ArgumentParserError as e:
-                        print('input was not understood: {}'.format(task))
+                        self._messenger('input was not understood: {}'.format(task))
             sleep(4)
 
     def _server_monitor(self):
@@ -151,7 +161,7 @@ class JobServer:
             for candidate, job in self._job_selector():
                 candidate.launch_task(job)
                 job.status = 1
-
+                logging.info("Job {name} launched on Server {id}".format(name=job.name, id=candidate.id))
             # Perform cleanup of job list
             job_holding = []
             for job in self.job_list:
@@ -214,6 +224,8 @@ class JobServer:
         new_job.job_id = self.job_count
         self.job_count += 1
         self.job_list.append(new_job)
+        logging.info("New job posted: {name} {cores}".format(name=parser.name, cores=parser.cores))
+        self._messenger("New job posted: {name}".format(name=parser.name))
 
     def scan(self, parser):
         args = parser.args
@@ -288,7 +300,6 @@ class Server:
         self.id = id
         self.creation = asctime()
         self._start = time()
-        self.uptime = self._get_time
         self.busytime = 0  # TODO: find a good way to log this
         self.folder = folder
         self.cores = self._core_count()
@@ -296,7 +307,7 @@ class Server:
         self.jobs = {}
 
     @property
-    def _get_time(self):
+    def uptime(self):
         return time() - self._start
 
     def _core_count(self):
