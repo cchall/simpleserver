@@ -1,6 +1,6 @@
 
 class Job:
-    def __init__(self, name, runfile, cores, priority=2, mode='distributed', command='python', **_unused):
+    def __init__(self, name, runfile, cores, priority=2, mode='distributed', command='python2', **_unused):
         assert (mode == 'distributed') or (mode == 'serial'), "Run mode not understood"
         self.name = name
         self.runfile = runfile
@@ -14,9 +14,14 @@ class Job:
         self.endtime = None
         self.directory = './test/'  # TODO: Put in setting to modify directory
 
-        print("Temporary testing mpiexec used")
-        self.base_string = "python monkey_program.py -n {cores} -h {id} {command} {runfile}"
-        self.base_string = "{command} {runfile} -n {cores} -h {id}"
+        self.debug = False
+
+        if self.debug:
+            print("Temporary testing mpiexec used")
+            self.base_string = "python monkey_program.py -n {cores} -h {id} {command} {runfile}"
+            self.base_string = "{command} {runfile} -n {cores} -h {id}"
+        else:
+            self.base_string = "rsmpi -n {cores} -h {id} {command} {runfile}"
 
     def simulation(self, *args):
         inputs_str = ' '
