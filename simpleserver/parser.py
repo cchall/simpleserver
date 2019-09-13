@@ -1,5 +1,6 @@
 import argparse
 import sys
+from os import getcwd
 
 # TODO: Redirect help messages to SimplerServer._messenger
 
@@ -44,6 +45,7 @@ class ParserSetup:
         return parser.parse_args(sys.argv[2:])
 
     def simulation(self):
+        client_location = getcwd()
         parser = ArgumentParserWrapper(description='Start a single simulation.', add_help=False)
         parser.add_argument('--internal', dest='server_action', default='simulation')
 
@@ -53,6 +55,7 @@ class ParserSetup:
         parser.add_argument('--assignment', choices=['distributed, serial'], dest='mode', default='distributed')
         parser.add_argument('--priority', type=int, choices=[2, 1], default=2)
         parser.add_argument('--arguments', nargs='+', dest='args')
+        parser.add_argument('--path', type=str, dest='file_path', default=client_location)
 
         return parser.parse_args(sys.argv[2:])
 

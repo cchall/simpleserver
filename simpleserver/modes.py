@@ -12,7 +12,7 @@ class Job:
         self.task = None
         self.starttime = None
         self.endtime = None
-        self.directory = './test/'  # TODO: Put in setting to modify directory
+        self.file_path = './test/'  # TODO: Put in setting to modify directory
 
         self.debug = False
 

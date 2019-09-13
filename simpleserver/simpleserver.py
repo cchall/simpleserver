@@ -1,5 +1,6 @@
 from subprocess import Popen, PIPE
 from time import sleep, asctime, time
+from os import chdir, mkdir
 import numpy as np
 import shutil
 import socket
@@ -14,7 +15,7 @@ from parser import ParserSetup, ArgumentParserError
 import modes
 
 # TODO: Need to make sure folders go to where the client issued request (or the run file home)
-
+# TODO: Warning if no servers are allocated
 logging.basicConfig(filename='example.log',level=logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -159,8 +160,11 @@ class JobServer:
         while 1:
             # Launch all jobs available that will fit
             for candidate, job in self._job_selector():
-                candidate.launch_task(job)
-                job.status = 1
+                job_status = candidate.launch_task(job)
+                if job_status == -1:
+                    self._messenger("Job {name} could not be started".format(name=job.name))
+                else:
+                    job.status = job_status
                 logging.info("Job {name} launched on Server {id}".format(name=job.name, id=candidate.id))
             # Perform cleanup of job list
             job_holding = []
@@ -331,11 +335,19 @@ class Server:
             print("Could not remove {}\n\n {}".format(self.folder, e))
 
     def launch_task(self, job):
+        try:
+            chdir(job.file_path)
+        except OSError as e:
+            logging.error('Could not change directory to: {}'.format(job.file_path))
+            return -1
+
         self.free_cores -= job.cores
-        mkfolder = Popen('mkdir -p {}'.format(job.directory), shell=True)
-        mkfolder.wait()
+        change_directory = Popen('cd {}'.format(job.directory), shell=True)
+        change_directory.wait()
         self.jobs[Popen(job.task.format(id=self.id), shell=True)] = job
         job.starttime = time()
+
+        return 1
 
     def cleanup_tasks(self):
         process_cleanup = []
@@ -356,7 +368,7 @@ class Server:
         report  = "Report: Server {}\n".format(self.id)
         report += "Registered on {}\n".format(self.creation)
         report += "Usage: {} out of {} hours, {}% occupation\n".format(self.busytime,
-                                                                       self.uptime,
+                                                                       self.uptime / 60. / 60.,
                                                                        self.busytime / self.uptime * 100)
         report += "{} Jobs Running\n".format(len(self.jobs))
         for i, job in enumerate(self.jobs.values()):
