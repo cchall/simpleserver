@@ -342,9 +342,15 @@ class Server:
             return -1
 
         self.free_cores -= job.cores
-        change_directory = Popen('cd {}'.format(job.directory), shell=True)
+        change_directory = Popen('cd {}'.format(job.file_path), shell=True)
         change_directory.wait()
-        self.jobs[Popen(job.task.format(id=self.id), shell=True)] = job
+        new_process = Popen(job.task.format(id=self.id), shell=True, stdout=PIPE, stderr=PIPE)
+        # Log the Job object with the Server
+        self.jobs[new_process] = job
+        # Register the process with the Job
+        job.process = new_process
+        # Start recording the process output
+        job.record()
         job.starttime = time()
 
         return 1
