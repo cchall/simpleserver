@@ -2,7 +2,8 @@ from threading import Thread
 
 
 class Job:
-    def __init__(self, name, runfile, cores, priority=2, mode='distributed', command='python2', **_unused):
+    def __init__(self, name, runfile, cores, priority=2,
+                 mode='distributed', command='python2', file_path=None, **_unused):
         assert (mode == 'distributed') or (mode == 'serial'), "Run mode not understood"
         self.name = name
         self.runfile = runfile
@@ -15,7 +16,10 @@ class Job:
         self.starttime = None
         self.endtime = None
         self.process = None
-        self.file_path = '.'  # TODO: Put in setting to modify directory
+        if not file_path:
+            self.file_path = '.'
+        else:
+            self.file_path = file_path
 
         self.debug = True
 
@@ -46,17 +50,22 @@ class Job:
         writer_thread.start()
 
     def _stream_writer(self):
-        with open(self.name + '.log', 'w') as ff:
-            while True:
-                line = self.process.stdout.readline()
+        stream_file = self.name + '.log'
+        with open(stream_file, 'a+') as ff:
+            ff.write('Started')
+        while True:
+            line = self.process.stdout.readline()
+            with open(stream_file, 'a+') as ff:
+                ff.write('next')
                 ff.write(line)
-                if line == '' and self.process.poll() != None:
-                    try:
-                        line = self.process.stderr.readlines()
+            if line == '' and self.process.poll() != None:
+                try:
+                    line = self.process.stderr.readlines()
+                    with open(stream_file, 'a+') as ff:
                         ff.write(line)
-                    except:
-                        pass
-                    break
+                except:
+                    pass
+                break
 
     def _status(self):
         # Check status of tasks and assign from `job_status`

@@ -335,6 +335,7 @@ class Server:
             print("Could not remove {}\n\n {}".format(self.folder, e))
 
     def launch_task(self, job):
+        # TODO: Not sure that the change of directory for launch_task is necessary
         try:
             chdir(job.file_path)
         except OSError as e:
@@ -342,9 +343,8 @@ class Server:
             return -1
 
         self.free_cores -= job.cores
-        change_directory = Popen('cd {}'.format(job.file_path), shell=True)
-        change_directory.wait()
-        new_process = Popen(job.task.format(id=self.id), shell=True, stdout=PIPE, stderr=PIPE)
+        new_process = Popen('cd {} &&'.format(job.file_path) +
+                            job.task.format(id=self.id), shell=True, stdout=PIPE, stderr=PIPE)
         # Log the Job object with the Server
         self.jobs[new_process] = job
         # Register the process with the Job
