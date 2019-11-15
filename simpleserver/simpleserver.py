@@ -14,8 +14,12 @@ from threading import Thread
 from parser import ParserSetup, ArgumentParserError
 import modes
 
-# TODO: Need to make sure folders go to where the client issued request (or the run file home)
 # TODO: Warning if no servers are allocated
+# TODO: Have logger post time that a job is started
+# TODO: Finally get server to track run time
+# TODO: Make command to post machine readable job status info
+
+
 logging.basicConfig(filename='example.log',level=logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -183,14 +187,18 @@ class JobServer:
         # Determines which job should be assigned to an open server
         for job in self.job_list:
             # Find server with least number of cores that will still fit the job
-            candidate = None
-            candidate_cores = job.cores
+            candidates = []
+            candidate_cores = []
+
             print('jcores', candidate_cores)
             for server in self.server_list.values():
                 print('server has', server.id, server.free_cores)
-                if candidate_cores <= server.free_cores:
-                    candidate = server
-                    candidate_cores = server.free_cores
+                if job.cores <= server.free_cores:
+                    candidates.append(server)
+                    candidate_cores.append(server.free_cores)
+
+            candidate = candidates[np.argmin(candidate_cores)]
+
             if candidate is not None:
                 yield candidate, job
 
@@ -378,7 +386,8 @@ class Server:
                                                                        self.busytime / self.uptime * 100)
         report += "{} Jobs Running\n".format(len(self.jobs))
         for i, job in enumerate(self.jobs.values()):
-            report += "{}. {}: {}s on {} cores -- {}\n".format(i, job.name, time() - job.starttime, job.cores, job.task)
+            report += "{}. {} ID={}: {}s on {} cores -- {}\n".format(i, job.name, job.job_id, time() - job.starttime,
+                                                                     job.cores, job.task)
 
         return report
 
