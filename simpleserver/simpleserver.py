@@ -128,7 +128,7 @@ class JobServer:
                 break
 
             if self._output_buffer[clientsocket]:
-                clientsocket.send(self._output_buffer[clientsocket])
+                clientsocket.send(self._output_buffer[clientsocket].encode())
                 self._output_buffer[clientsocket] = ''
 
             sleep(1.75)
